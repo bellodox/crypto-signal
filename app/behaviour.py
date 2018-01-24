@@ -9,6 +9,7 @@ from analysis import StrategyAnalyzer
 from database import DatabaseHandler
 from behaviours.default import DefaultBehaviour
 from behaviours.simple_bot import SimpleBotBehaviour
+from behaviours.candle_cache import CandleCacheBehaviour
 from behaviours.reporter import ReporterBehaviour
 from behaviours.ui.server import ServerBehaviour
 
@@ -51,6 +52,9 @@ class Behaviour(object):
         if selected_behaviour == 'server':
             behaviour = self.__configure_server(behaviour_config)
 
+        if selected_behaviour == 'candle_cache':
+            behaviour = self.__configure_candle_cache(behaviour_config)
+
         return behaviour
 
 
@@ -82,14 +86,14 @@ class Behaviour(object):
 
 
     def __configure_simple_bot(self, behaviour_config):
-        """Configures and returns the rsi bot behaviour class.
+        """Configures and returns the bot behaviour class.
 
         Args:
             behaviour_config (dict): A dictionary of configuration values pertaining to the
                 behaviour.
 
         Returns:
-            SimpleBotBehaviour: A class of functionality for the rsi bot behaviour.
+            SimpleBotBehaviour: A class of functionality for the bot behaviour.
         """
 
         exchange_interface = ExchangeInterface(self.config.exchanges)
@@ -98,6 +102,32 @@ class Behaviour(object):
         db_handler = DatabaseHandler(self.config.database)
 
         behaviour = SimpleBotBehaviour(
+            behaviour_config,
+            exchange_interface,
+            strategy_analyzer,
+            notifier,
+            db_handler
+        )
+
+        return behaviour
+
+    def __configure_candle_cache(self, behaviour_config):
+        """Configures and returns the candle caching behaviour class.
+
+        Args:
+            behaviour_config (dict): A dictionary of configuration values pertaining to the
+                behaviour.
+
+        Returns:
+            SimpleBotBehaviour: A class of functionality for the candle caching behaviour.
+        """
+
+        exchange_interface = ExchangeInterface(self.config.exchanges)
+        strategy_analyzer = StrategyAnalyzer(exchange_interface)
+        notifier = Notifier(self.config.notifiers)
+        db_handler = DatabaseHandler(self.config.database)
+
+        behaviour = CandleCacheBehaviour(
             behaviour_config,
             exchange_interface,
             strategy_analyzer,
