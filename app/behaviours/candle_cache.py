@@ -48,6 +48,8 @@ class CandleCacheBehaviour():
                     self.behaviour_config['timeframe']
                 )
 
+
+                ### REMEMBER TO CHECK IT DOESNT EXIST
                 for entry in historical_data:
                     ohlcv_payload = {
                         'exchange': exchange,
