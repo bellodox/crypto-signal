@@ -119,17 +119,15 @@ class Behaviour(object):
                 behaviour.
 
         Returns:
-            SimpleBotBehaviour: A class of functionality for the candle caching behaviour.
+            CandleCacheBehaviour: A class of functionality for the candle caching behaviour.
         """
 
         exchange_interface = ExchangeInterface(self.config.exchanges)
-        strategy_analyzer = StrategyAnalyzer(exchange_interface)
         db_handler = DatabaseHandler(self.config.database)
 
         behaviour = CandleCacheBehaviour(
             behaviour_config,
             exchange_interface,
-            strategy_analyzer,
             db_handler
         )
 

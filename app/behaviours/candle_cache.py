@@ -7,18 +7,13 @@ class CandleCacheBehaviour():
     """Candle caching behaviour.
     """
 
-    def __init__(self, behaviour_config, exchange_interface,
-                 strategy_analyzer, db_handler):
+    def __init__(self, behaviour_config, exchange_interface, db_handler):
         """Initialize SimpleBotBehaviour class.
 
         Args:
             behaviour_config (dict): A dictionary of configuration for this behaviour.
             exchange_interface (ExchangeInterface): Instance of the ExchangeInterface class for
                 making exchange queries.
-            strategy_analyzer (StrategyAnalyzer): Instance of the StrategyAnalyzer class for
-                running analysis on exchange information.
-            notifier (Notifier): Instance of the notifier class for informing a user when a
-                threshold has been crossed.
             db_handler (DatbaseHandler): Instance of the DatabaseHandler class for reading and
                 storing transaction data.
         """
@@ -26,7 +21,6 @@ class CandleCacheBehaviour():
         self.logger = structlog.get_logger()
         self.behaviour_config = behaviour_config
         self.exchange_interface = exchange_interface
-        self.strategy_analyzer = strategy_analyzer
         self.db_handler = db_handler
 
 
@@ -55,8 +49,15 @@ class CandleCacheBehaviour():
                 )
 
                 for entry in historical_data:
-                    data_payload = {
-
+                    ohlcv_payload = {
+                        'exchange': exchange,
+                        'symbol_pair': market_pair,
+                        'timestamp': entry[0],
+                        'open': entry[1],
+                        'high': entry[2],
+                        'low': entry[3],
+                        'close': entry[4],
+                        'volume': entry[5]
                     }
 
-                    self.db_handler.create_row()
+                    self.db_handler.create_row('candles', ohlcv_payload)
