@@ -124,14 +124,12 @@ class Behaviour(object):
 
         exchange_interface = ExchangeInterface(self.config.exchanges)
         strategy_analyzer = StrategyAnalyzer(exchange_interface)
-        notifier = Notifier(self.config.notifiers)
         db_handler = DatabaseHandler(self.config.database)
 
         behaviour = CandleCacheBehaviour(
             behaviour_config,
             exchange_interface,
             strategy_analyzer,
-            notifier,
             db_handler
         )
 

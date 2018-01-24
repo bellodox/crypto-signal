@@ -65,7 +65,7 @@ class DatabaseHandler():
         return connection_string
 
 
-    def read_table(self, table_name, filter_args={}):
+    def read_rows(self, table_name, filter_args={}):
         """Returns a query object containing the contents of the requested table.
 
         Args:
@@ -79,7 +79,7 @@ class DatabaseHandler():
         return self.session.query(self.tables[table_name]).filter_by(**filter_args)
 
 
-    def create_table(self, table_name, create_args):
+    def create_row(self, table_name, create_args):
         """Attempts to create a record in the requested table.
 
         Args:
@@ -101,8 +101,8 @@ class DatabaseHandler():
         return create_success
 
 
-    def update_table(self, table_name, row, update_args={}):
-        """Attempts to update a record in the requested table.
+    def update_row(self, table_name, row, update_args={}):
+        """Attempts to update a record isn the requested table.
 
         Args:
             holding (Holdings): An instance of the holding class to apply the update to.

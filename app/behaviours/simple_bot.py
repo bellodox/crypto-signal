@@ -231,7 +231,7 @@ class SimpleBotBehaviour():
             # Do live trading stuff here
             print('Nothing to do yet')
         else:
-            potential_holdings = self.db_handler.read_table(
+            potential_holdings = self.db_handler.read_rows(
                 'holdings',
                 {
                     'exchange': exchange,
@@ -244,7 +244,7 @@ class SimpleBotBehaviour():
                 base_holding.volume_free = base_holding.volume_free + base_volume
                 base_holding.volume_used = base_holding.volume_used
                 base_holding.volume_total = base_holding.volume_free + base_holding.volume_used
-                self.db_handler.update_table('holdings', base_holding)
+                self.db_handler.update_row('holdings', base_holding)
             else:
                 base_holding = {
                     'exchange': exchange,
@@ -253,9 +253,9 @@ class SimpleBotBehaviour():
                     'volume_used': 0,
                     'volume_total': base_volume
                 }
-                self.db_handler.create_table('holdings', base_holding)
+                self.db_handler.create_row('holdings', base_holding)
 
-            quote_holding = self.db_handler.read_table(
+            quote_holding = self.db_handler.read_rows(
                 'holdings',
                 {
                     'exchange': exchange,
@@ -267,7 +267,7 @@ class SimpleBotBehaviour():
             quote_holding.volume_used = quote_holding.volume_used
             quote_holding.volume_total = quote_holding.volume_free + quote_holding.volume_used
 
-            self.db_handler.update_table('holdings', quote_holding)
+            self.db_handler.update_row('holdings', quote_holding)
 
         purchase_payload = {
             'exchange': exchange,
@@ -283,7 +283,7 @@ class SimpleBotBehaviour():
 
         print(purchase_payload)
 
-        self.db_handler.create_table('transactions', purchase_payload)
+        self.db_handler.create_row('transactions', purchase_payload)
 
 
     def sell(self, base_symbol, quote_symbol, market_pair, exchange, current_holdings):
@@ -316,7 +316,7 @@ class SimpleBotBehaviour():
             # Do live trading stuff here
             print('Nothing to do yet')
         else:
-            base_holding = self.db_handler.read_table(
+            base_holding = self.db_handler.read_rows(
                 'holdings',
                 {
                     'exchange': exchange,
@@ -327,9 +327,9 @@ class SimpleBotBehaviour():
             base_holding.volume_free = base_holding.volume_free - base_bid
             base_holding.volume_used = base_holding.volume_used
             base_holding.volume_total = base_holding.volume_free + base_holding.volume_used
-            self.db_handler.update_table('holdings', base_holding)
+            self.db_handler.update_row('holdings', base_holding)
 
-            quote_holding = self.db_handler.read_table(
+            quote_holding = self.db_handler.read_rows(
                 'holdings',
                 {
                     'exchange': exchange,
@@ -340,7 +340,7 @@ class SimpleBotBehaviour():
             quote_holding.volume_free = quote_holding.volume_free + quote_volume
             quote_holding.volume_used = quote_holding.volume_used
             quote_holding.volume_total = quote_holding.volume_free + quote_holding.volume_used
-            self.db_handler.update_table('holdings', quote_holding)
+            self.db_handler.update_row('holdings', quote_holding)
 
         sale_payload = {
             'exchange': exchange,
@@ -356,7 +356,7 @@ class SimpleBotBehaviour():
 
         print(sale_payload)
 
-        self.db_handler.create_table('transactions', sale_payload)
+        self.db_handler.create_row('transactions', sale_payload)
 
 
     def __get_holdings(self):
@@ -366,7 +366,7 @@ class SimpleBotBehaviour():
             dict: A dictionary of the users available funds.
         """
 
-        holdings_table = self.db_handler.read_table('holdings')
+        holdings_table = self.db_handler.read_rows('holdings')
         holdings = {}
 
         for row in holdings_table:
@@ -397,7 +397,7 @@ class SimpleBotBehaviour():
                     'volume_total': user_account_markets['total'][symbol]
                 }
 
-                self.db_handler.create_table('holdings', holding_payload)
+                self.db_handler.create_row('holdings', holding_payload)
 
             quote_symbols = self.exchange_interface.get_quote_symbols(exchange)
 
@@ -411,14 +411,14 @@ class SimpleBotBehaviour():
                         'volume_total': 0
                     }
 
-                self.db_handler.create_table('holdings', holding_payload)
+                self.db_handler.create_row('holdings', holding_payload)
 
 
     def __update_holdings(self):
         """Synchronize the database cache with the crypto holdings from the users account.
         """
 
-        holdings_table = self.db_handler.read_table('holdings')
+        holdings_table = self.db_handler.read_rows('holdings')
         user_account_markets = {}
         for row in holdings_table:
             if not row.exchange in user_account_markets:
@@ -430,4 +430,4 @@ class SimpleBotBehaviour():
             row.volume_used = user_account_markets[row.exchange]['used'][row.symbol]
             row.volume_total = user_account_markets[row.exchange]['total'][row.symbol]
 
-            self.db_handler.update_table('holdings', row)
+            self.db_handler.update_row('holdings', row)

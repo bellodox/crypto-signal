@@ -124,6 +124,8 @@
       "name": "default"
     },
     "server": {},
-    "candle_cache": {}
+    "candle_cache": {
+      "timeframe": "1h"
+    }
   }
 }
