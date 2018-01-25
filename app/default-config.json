@@ -98,7 +98,7 @@
     "simple_bot": {
       "mode": "simulate",
       "open_order_max_hours": 24,
-      "analysis_timeframe": "1d",
+      "days_to_analyze": 100,
       "strategy": "rsi",
       "strategy_period": 14,
       "buy": {

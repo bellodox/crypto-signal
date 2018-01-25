@@ -1,7 +1,7 @@
 """Simple trading bot.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import structlog
 
@@ -49,18 +49,28 @@ class SimpleBotBehaviour():
             self.logger.debug("No configured symbol pairs, using all available on exchange.")
             market_data = self.exchange_interface.get_exchange_markets()
 
+        start_day = datetime.now() - timedelta(days=self.behaviour_config['days_to_analyze'])
+        start_timestamp = int(start_day.replace(tzinfo=timezone.utc).timestamp() * 1000)
+        historical_data_table = self.db_handler.candles_after_timestamp('candles', start_timestamp)
+
+        historical_data = {}
+        for row in historical_data_table:
+            if row.exchange in market_data:
+                if row.exchange not in historical_data:
+                    historical_data[row.exchange] = {}
+                if row.symbol_pair in market_data[row.exchange]:
+                    historical_data[row.exchange][row.symbol_pair].append([
+                        row.timestamp,
+                        row.high,
+                        row.low,
+                        row.close,
+                        row.volume
+                    ])
+
         analyzed_data = {}
-        for exchange, markets in market_data.items():
-            analyzed_data[exchange] = {}
-
-            for market_pair in markets:
-                historical_data = self.exchange_interface.get_historical_data(
-                    market_data[exchange][market_pair]['symbol'],
-                    exchange,
-                    self.behaviour_config['analysis_timeframe']
-                )
-
-                strategy_result = self.__run_strategy(historical_data)
+        for exchange in historical_data:
+            for market_pair in historical_data[exchange]:
+                strategy_result = self.__run_strategy(historical_data[exchange][market_pair])
                 if strategy_result:
                     analyzed_data[exchange][market_pair] = strategy_result
 

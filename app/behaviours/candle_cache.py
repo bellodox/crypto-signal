@@ -48,8 +48,6 @@ class CandleCacheBehaviour():
                     self.behaviour_config['timeframe']
                 )
 
-
-                ### REMEMBER TO CHECK IT DOESNT EXIST
                 for entry in historical_data:
                     ohlcv_payload = {
                         'exchange': exchange,
@@ -62,4 +60,5 @@ class CandleCacheBehaviour():
                         'volume': entry[5]
                     }
 
-                    self.db_handler.create_row('candles', ohlcv_payload)
+                    if not self.db_handler.read_rows('candles', ohlcv_payload).count():
+                        self.db_handler.create_row('candles', ohlcv_payload)

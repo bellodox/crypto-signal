@@ -4,18 +4,25 @@
 import structlog
 
 from sqlalchemy import create_engine
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, TimeoutError
 from sqlalchemy.orm import sessionmaker
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from db.base import BASE
 from db.candles import Candles
 from db.holdings import Holdings
 from db.transactions import Transactions
 
+
 class DatabaseHandler():
     """Class that serves as the interface for bots to use to interact with the database.
     """
 
+    @retry(
+        retry=retry_if_exception_type(TimeoutError),
+        stop=stop_after_attempt(3),
+        wait=wait_fixed(10)
+    )
     def __init__(self, database_config):
         """Initializes the DatabaseHandler class.
 
@@ -121,3 +128,8 @@ class DatabaseHandler():
             self.logger.error("Failed to update holding record!", update_args=update_args)
             self.session.rollback()
         return update_success
+
+    def candles_after_timestamp(self, start_timestamp):
+        return self.session.query(self.tables['candles']).filter(
+            self.tables['candles'].timestamp >= start_timestamp
+        )
