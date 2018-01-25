@@ -1,6 +1,6 @@
 {
   "settings": {
-    "log_mode": "text",
+    "log_mode": "message_only",
     "market_pairs": [],
     "loglevel": "",
     "update_interval": 300,

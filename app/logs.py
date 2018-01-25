@@ -22,8 +22,12 @@ def configure_logging(loglevel, log_mode):
 
     if log_mode == 'json':
         log_formatter = jsonlogger.JsonFormatter()
-    elif log_mode == 'text':
+    elif log_mode == 'message_only':
         log_formatter = logging.Formatter('%(message)s')
+    elif log_mode == 'standard':
+        log_formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
     else:
         log_formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
