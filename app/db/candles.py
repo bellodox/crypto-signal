@@ -3,7 +3,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, Numeric, String, Float, DateTime
 
 from db.base import BASE
 
@@ -18,12 +18,12 @@ class Candles(BASE):
     update_time = Column(DateTime, default=datetime.now(), onupdate=datetime.now())
     exchange = Column(String)
     symbol_pair = Column(String)
-    timestamp = Column(Integer)
-    open = Column(Float)
-    high = Column(Float)
-    low = Column(Float)
-    close = Column(Float)
-    volume = Column(Float)
+    timestamp = Column(Numeric)
+    open = Column(Numeric)
+    high = Column(Numeric)
+    low = Column(Numeric)
+    close = Column(Numeric)
+    volume = Column(Numeric)
 
     def __repr__(self):
         return "<Candles(\

@@ -40,7 +40,7 @@ class SimpleBotBehaviour():
             market_pairs (str): List of symbol pairs to operate on, if empty get all pairs.
         """
 
-        self.logger.info("Starting default behaviour...")
+        self.logger.info("Starting bot behaviour...")
 
         if market_pairs:
             self.logger.debug("Found configured symbol pairs.")
@@ -51,25 +51,38 @@ class SimpleBotBehaviour():
 
         start_day = datetime.now() - timedelta(days=self.behaviour_config['days_to_analyze'])
         start_timestamp = int(start_day.replace(tzinfo=timezone.utc).timestamp() * 1000)
-        historical_data_table = self.db_handler.candles_after_timestamp('candles', start_timestamp)
+        historical_data_table = self.db_handler.candles_after_timestamp(start_timestamp)
+
+        if historical_data_table.count() == 0:
+            self.logger.info("No candle entries in database...")
+            return
 
         historical_data = {}
         for row in historical_data_table:
             if row.exchange in market_data:
                 if row.exchange not in historical_data:
                     historical_data[row.exchange] = {}
+
                 if row.symbol_pair in market_data[row.exchange]:
+                    if row.symbol_pair not in historical_data[row.exchange]:
+                        historical_data[row.exchange][row.symbol_pair] = []
+
                     historical_data[row.exchange][row.symbol_pair].append([
-                        row.timestamp,
-                        row.high,
-                        row.low,
-                        row.close,
-                        row.volume
+                        int(row.timestamp),
+                        float(row.open),
+                        float(row.high),
+                        float(row.low),
+                        float(row.close),
+                        float(row.volume)
                     ])
 
         analyzed_data = {}
         for exchange in historical_data:
+            print(exchange)
+            if exchange not in analyzed_data:
+                analyzed_data[exchange] = {}
             for market_pair in historical_data[exchange]:
+                print(market_pair)
                 strategy_result = self.__run_strategy(historical_data[exchange][market_pair])
                 if strategy_result:
                     analyzed_data[exchange][market_pair] = strategy_result

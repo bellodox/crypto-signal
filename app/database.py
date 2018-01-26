@@ -4,7 +4,7 @@
 import structlog
 
 from sqlalchemy import create_engine
-from sqlalchemy.exc import SQLAlchemyError, TimeoutError
+from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from sqlalchemy.orm import sessionmaker
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
@@ -19,7 +19,7 @@ class DatabaseHandler():
     """
 
     @retry(
-        retry=retry_if_exception_type(TimeoutError),
+        retry=retry_if_exception_type(OperationalError),
         stop=stop_after_attempt(3),
         wait=wait_fixed(10)
     )
@@ -86,6 +86,25 @@ class DatabaseHandler():
         return self.session.query(self.tables[table_name]).filter_by(**filter_args)
 
 
+    def row_exists(self, table_name, filter_args={}):
+        """Returns a query object containing the contents of the requested table.
+
+        Args:
+            table_name (str): the string representation of the database table to query.
+            filter_args (dict): A dictionary of query filter values.
+
+        Returns:
+            sqlalchemy.Query: A sqlalchemy query object with applied filters.
+        """
+
+        exists = False
+        instance = self.session.query(self.tables[table_name]).filter_by(**filter_args).first()
+        if instance:
+            exists = True
+
+        return exists
+
+
     def create_row(self, table_name, create_args):
         """Attempts to create a record in the requested table.
 
@@ -129,7 +148,38 @@ class DatabaseHandler():
             self.session.rollback()
         return update_success
 
+
     def candles_after_timestamp(self, start_timestamp):
+        """Get all candles after a particular timestamp
+
+        Args:
+            start_timestamp (int): The timestamp in milliseconds to start from.
+
+        Returns:
+            sqlalchemy.Query: All rows after the specified timestamp.
+        """
+
         return self.session.query(self.tables['candles']).filter(
             self.tables['candles'].timestamp >= start_timestamp
         )
+
+
+    def candles_bulk_insert(self, ohlcv_list):
+        """Creates candle records in bulk
+
+        Args:
+            ohlcv_list (list): A list of dictionaries containing OHLCV data
+
+        Returns:
+            Boolean: Was the update a success?
+        """
+
+        create_success = True
+        try:
+            self.session.bulk_insert_mappings(self.tables['candles'], ohlcv_list)
+            self.session.commit()
+        except SQLAlchemyError:
+            create_success = False
+            self.logger.error("Failed to create bulk candles!")
+            self.session.rollback()
+        return create_success

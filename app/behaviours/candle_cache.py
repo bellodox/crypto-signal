@@ -41,11 +41,13 @@ class CandleCacheBehaviour():
             market_data = self.exchange_interface.get_exchange_markets()
 
         for exchange in market_data:
+            payload_list = []
             for market_pair in market_data[exchange]:
                 historical_data = self.exchange_interface.get_historical_data(
                     market_data[exchange][market_pair]['symbol'],
                     exchange,
-                    self.behaviour_config['timeframe']
+                    self.behaviour_config['timeframe'],
+                    max_days=self.behaviour_config['number_of_candles']
                 )
 
                 for entry in historical_data:
@@ -60,5 +62,7 @@ class CandleCacheBehaviour():
                         'volume': entry[5]
                     }
 
-                    if not self.db_handler.read_rows('candles', ohlcv_payload).count():
-                        self.db_handler.create_row('candles', ohlcv_payload)
+                    if not self.db_handler.row_exists('candles', ohlcv_payload):
+                        payload_list.append(ohlcv_payload)
+
+                self.db_handler.candles_bulk_insert(payload_list)

@@ -125,7 +125,8 @@
     },
     "server": {},
     "candle_cache": {
-      "timeframe": "1h"
+      "timeframe": "1h",
+      "number_of_candles": 55
     }
   }
 }
