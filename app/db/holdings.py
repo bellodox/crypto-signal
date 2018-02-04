@@ -21,6 +21,8 @@ class Holdings(BASE):
     volume_free = Column(Float)
     volume_used = Column(Float)
     volume_total = Column(Float)
+    btc_stop_loss = Column(Float, default=0)
+    stop_loss_cooldown = Column(DateTime, default=datetime.now())
 
     def __repr__(self):
         return "<Holdings(\
@@ -30,12 +32,16 @@ class Holdings(BASE):
             symbol='%s',\
             volume_free='%s',\
             volume_used='%s',\
-            volume_total='%s')>" % (
+            volume_total='%s',\
+            btc_stop_loss='%s',\
+            stop_loss_cooldown='%s')>" % (
                 self.exchange,
                 self.create_time,
                 self.update_time,
                 self.symbol,
                 self.volume_free,
                 self.volume_used,
-                self.volume_total
+                self.volume_total,
+                self.btc_stop_loss,
+                self.stop_loss_cooldown
             )

@@ -135,8 +135,12 @@ class SimpleBotBehaviour():
 
                     quote_volume_total = current_holdings[exchange][quote_symbol]['volume_total']
                     if not quote_volume_total == 0:
-                        base_volume_total = current_holdings[exchange][base_symbol]['volume_total']
-                        if not base_symbol in current_holdings[exchange] or base_volume_total == 0:
+                        if base_symbol in current_holdings[exchange]:
+                            base_volume_total = current_holdings[exchange][base_symbol]['volume_total']
+                        else:
+                            base_volume_total = 0
+
+                        if base_volume_total == 0:
                             self.logger.debug("%s is not in holdings, buying!", base_symbol)
                             self.buy(
                                 base_symbol,
@@ -167,6 +171,55 @@ class SimpleBotBehaviour():
                                 current_holdings
                             )
                             current_holdings = self.__get_holdings()
+
+                elif base_symbol in current_holdings[exchange]:
+                    if quote_symbol != "BTC":
+                        potential_holdings = self.db_handler.read_rows(
+                            'holdings',
+                            {
+                                'exchange': exchange,
+                                'symbol': base_symbol
+                            }
+                        )
+
+                        if potential_holdings.count():
+                            base_holding = potential_holdings.one()
+                        else:
+                            continue
+
+                        order_book = self.exchange_interface.get_order_book(market_pair, exchange)
+                        bid = order_book['bids'][0][0] if order_book['bids'] else None
+                        if not bid:
+                            continue
+
+                        current_symbol_holdings = current_holdings[exchange][base_symbol]
+                        base_bid = current_symbol_holdings['volume_free']
+
+                        quote_volume = base_bid * bid
+
+                        btc_value = self.exchange_interface.get_btc_value(
+                            exchange,
+                            quote_symbol,
+                            quote_volume
+                        )
+
+                        if base_holding.btc_stop_loss > btc_value:
+                            self.logger.debug("%s is under stop loss, selling!", base_symbol)
+                            self.sell(
+                                base_symbol,
+                                quote_symbol,
+                                market_pair,
+                                exchange,
+                                current_holdings
+                            )
+                            current_holdings = self.__get_holdings()
+                            print('STOP LOSS SALE OCCURED!')
+                            print(
+                                '%s: %s > %s',
+                                base_holding.btc_stop_loss,
+                                btc_value
+                            )
+                            exit()
 
         self.logger.debug(current_holdings)
 
@@ -244,9 +297,7 @@ class SimpleBotBehaviour():
                     order['timestamp']
                 ).strftime('%c')
 
-                time_to_hold = datetime.now() - timedelta(
-                    hours=self.behaviour_config['open_order_max_hours']
-                )
+                time_to_hold = datetime.now() - timedelta(days=1)
 
                 if self.behaviour_config['mode'] == 'live':
                     if time_to_hold > order_time:
@@ -305,6 +356,21 @@ class SimpleBotBehaviour():
 
         base_volume = quote_bid / base_ask
 
+        if quote_symbol == "BTC":
+            btc_value = quote_bid
+        else:
+            btc_value = self.exchange_interface.get_btc_value(exchange, quote_symbol, quote_bid)
+
+        if btc_value > 0:
+            stop_loss_percent = float(self.behaviour_config['stop_loss_percent'])
+            print('stop_percent: %s', stop_loss_percent)
+            percent_difference = (stop_loss_percent * btc_value) / 100
+            print('stop_percent_diff: %s', percent_difference)
+            btc_stop_loss = btc_value - percent_difference
+            print('btc_stop_loss: %s', btc_stop_loss)
+        else:
+            btc_stop_loss = 0
+
         if self.behaviour_config['mode'] == 'live':
             # Do live trading stuff here
             print('Nothing to do yet')
@@ -319,9 +385,13 @@ class SimpleBotBehaviour():
 
             if potential_holdings.count():
                 base_holding = potential_holdings.one()
+                if base_holding.stop_loss_cooldown > datetime.now():
+                    return
+
                 base_holding.volume_free = base_holding.volume_free + base_volume
                 base_holding.volume_used = base_holding.volume_used
                 base_holding.volume_total = base_holding.volume_free + base_holding.volume_used
+                base_holding.btc_stop_loss = btc_stop_loss
                 self.db_handler.update_row('holdings', base_holding)
             else:
                 base_holding = {
@@ -329,7 +399,8 @@ class SimpleBotBehaviour():
                     'symbol': base_symbol,
                     'volume_free': base_volume,
                     'volume_used': 0,
-                    'volume_total': base_volume
+                    'volume_total': base_volume,
+                    'btc_stop_loss': btc_stop_loss
                 }
                 self.db_handler.create_row('holdings', base_holding)
 
@@ -346,11 +417,6 @@ class SimpleBotBehaviour():
             quote_holding.volume_total = quote_holding.volume_free + quote_holding.volume_used
 
             self.db_handler.update_row('holdings', quote_holding)
-
-        if quote_symbol == "BTC":
-            btc_value = quote_bid
-        else:
-            btc_value = self.exchange_interface.get_btc_value(exchange, quote_symbol, quote_bid)
 
         purchase_payload = {
             'exchange': exchange,
@@ -370,7 +436,8 @@ class SimpleBotBehaviour():
         self.db_handler.create_row('transactions', purchase_payload)
 
 
-    def sell(self, base_symbol, quote_symbol, market_pair, exchange, current_holdings):
+    def sell(self, base_symbol, quote_symbol, market_pair,
+             exchange, current_holdings, stop_loss_sale=False):
         """Sell a base currency for a quote currency.
 
         Args:
@@ -405,6 +472,18 @@ class SimpleBotBehaviour():
 
         quote_volume = base_bid * bid
 
+        if quote_symbol == "BTC":
+            btc_value = quote_volume
+        else:
+            btc_value = self.exchange_interface.get_btc_value(exchange, quote_symbol, quote_volume)
+
+        if btc_value > 0:
+            stop_loss_percent = float(self.behaviour_config['stop_loss_percent'])
+            percent_difference = (stop_loss_percent * btc_value) / 100
+            btc_stop_loss = btc_value - percent_difference
+        else:
+            btc_stop_loss = 0
+
         if self.behaviour_config['mode'] == 'live':
             # Do live trading stuff here
             print('Nothing to do yet')
@@ -417,9 +496,17 @@ class SimpleBotBehaviour():
                 }
             ).one()
 
+            if stop_loss_sale:
+                stop_loss_cooldown_hours = self.behaviour_config['stop_loss_cooldown_hours']
+                stop_loss_cooldown = datetime.now() + timedelta(hours=stop_loss_cooldown_hours)
+            else:
+                stop_loss_cooldown = datetime.now()
+
             base_holding.volume_free = base_holding.volume_free - base_bid
             base_holding.volume_used = base_holding.volume_used
             base_holding.volume_total = base_holding.volume_free + base_holding.volume_used
+            base_holding.btc_stop_loss = btc_stop_loss
+            base_holding.stop_loss_cooldown = stop_loss_cooldown
             self.db_handler.update_row('holdings', base_holding)
 
             quote_holding = self.db_handler.read_rows(
@@ -475,7 +562,8 @@ class SimpleBotBehaviour():
             holdings[row.exchange][row.symbol] = {
                 'volume_free': row.volume_free,
                 'volume_used': row.volume_used,
-                'volume_total': row.volume_total
+                'volume_total': row.volume_total,
+                'btc_stop_loss': row.btc_stop_loss
             }
 
         return holdings

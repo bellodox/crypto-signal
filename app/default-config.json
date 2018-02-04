@@ -103,6 +103,8 @@
       "ignored_quote_currencies": [],
       "btc_volume_min": 100.0,
       "candle_timeframe": "1d",
+      "stop_loss_percent": "10",
+      "stop_loss_cooldown_hours": "24",
       "indicators": {
         "rsi": {
           "enabled": false,
