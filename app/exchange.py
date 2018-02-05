@@ -61,7 +61,10 @@ class ExchangeInterface():
             })
 
 
-    @retry(retry=retry_if_exception_type(ccxt.NetworkError), stop=stop_after_attempt(3))
+    @retry(
+        retry=(retry_if_exception_type(ccxt.NetworkError)|retry_if_exception_type(ccxt.ExchangeError)),
+        stop=stop_after_attempt(3)
+    )
     def get_historical_data(self, market_pair, exchange, time_unit, start_date=None, max_days=100):
         """Get historical OHLCV for a symbol pair
 

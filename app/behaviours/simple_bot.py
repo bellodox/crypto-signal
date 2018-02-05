@@ -123,8 +123,48 @@ class SimpleBotBehaviour():
             for market_pair in analyzed_data[exchange]:
                 base_symbol, quote_symbol = market_pair.split('/')
 
+                if base_symbol in current_holdings[exchange]:
+                    if base_symbol != "BTC":
+                        order_book = self.exchange_interface.get_order_book(market_pair, exchange)
+                        base_ask = order_book['asks'][0][0] if order_book['asks'] else None
+                        if not base_ask:
+                            return
 
-                if markets[market_pair]['is_hot']:
+                        current_symbol_holdings = current_holdings[exchange][quote_symbol]
+                        quote_bid = current_symbol_holdings['volume_free']
+
+                        base_volume = quote_bid / base_ask
+
+                        btc_value = self.exchange_interface.get_btc_value(
+                            exchange,
+                            base_symbol,
+                            base_volume
+                        )
+
+                        if current_symbol_holdings['btc_stop_loss'] > btc_value:
+                            self.logger.debug("%s is under stop loss, selling!", base_symbol)
+                            self.sell(
+                                base_symbol,
+                                quote_symbol,
+                                market_pair,
+                                exchange,
+                                current_holdings
+                            )
+                            current_holdings = self.__get_holdings()
+                            print('STOP LOSS SALE OCCURED!')
+                            print(
+                                base_symbol,
+                                ': ',
+                                current_symbol_holdings['btc_stop_loss'],
+                                ' > ',
+                                btc_value
+                            )
+                            exit()
+                        else:
+                            # Update stop loss here
+                            pass
+
+                elif markets[market_pair]['is_hot']:
                     self.logger.debug("%s is hot!", market_pair)
                     for indicator in markets[market_pair]['values']:
                         self.logger.debug(
@@ -147,7 +187,8 @@ class SimpleBotBehaviour():
                                 quote_symbol,
                                 market_pair,
                                 exchange,
-                                current_holdings)
+                                current_holdings
+                            )
                             current_holdings = self.__get_holdings()
 
                 elif markets[market_pair]['is_cold']:
@@ -171,55 +212,6 @@ class SimpleBotBehaviour():
                                 current_holdings
                             )
                             current_holdings = self.__get_holdings()
-
-                elif base_symbol in current_holdings[exchange]:
-                    if quote_symbol != "BTC":
-                        potential_holdings = self.db_handler.read_rows(
-                            'holdings',
-                            {
-                                'exchange': exchange,
-                                'symbol': base_symbol
-                            }
-                        )
-
-                        if potential_holdings.count():
-                            base_holding = potential_holdings.one()
-                        else:
-                            continue
-
-                        order_book = self.exchange_interface.get_order_book(market_pair, exchange)
-                        bid = order_book['bids'][0][0] if order_book['bids'] else None
-                        if not bid:
-                            continue
-
-                        current_symbol_holdings = current_holdings[exchange][base_symbol]
-                        base_bid = current_symbol_holdings['volume_free']
-
-                        quote_volume = base_bid * bid
-
-                        btc_value = self.exchange_interface.get_btc_value(
-                            exchange,
-                            quote_symbol,
-                            quote_volume
-                        )
-
-                        if base_holding.btc_stop_loss > btc_value:
-                            self.logger.debug("%s is under stop loss, selling!", base_symbol)
-                            self.sell(
-                                base_symbol,
-                                quote_symbol,
-                                market_pair,
-                                exchange,
-                                current_holdings
-                            )
-                            current_holdings = self.__get_holdings()
-                            print('STOP LOSS SALE OCCURED!')
-                            print(
-                                '%s: %s > %s',
-                                base_holding.btc_stop_loss,
-                                btc_value
-                            )
-                            exit()
 
         self.logger.debug(current_holdings)
 
@@ -359,15 +351,12 @@ class SimpleBotBehaviour():
         if quote_symbol == "BTC":
             btc_value = quote_bid
         else:
-            btc_value = self.exchange_interface.get_btc_value(exchange, quote_symbol, quote_bid)
+            btc_value = self.exchange_interface.get_btc_value(exchange, base_symbol, quote_bid)
 
         if btc_value > 0:
             stop_loss_percent = float(self.behaviour_config['stop_loss_percent'])
-            print('stop_percent: %s', stop_loss_percent)
             percent_difference = (stop_loss_percent * btc_value) / 100
-            print('stop_percent_diff: %s', percent_difference)
             btc_stop_loss = btc_value - percent_difference
-            print('btc_stop_loss: %s', btc_stop_loss)
         else:
             btc_stop_loss = 0
 
@@ -475,7 +464,7 @@ class SimpleBotBehaviour():
         if quote_symbol == "BTC":
             btc_value = quote_volume
         else:
-            btc_value = self.exchange_interface.get_btc_value(exchange, quote_symbol, quote_volume)
+            btc_value = self.exchange_interface.get_btc_value(exchange, base_symbol, quote_volume)
 
         if btc_value > 0:
             stop_loss_percent = float(self.behaviour_config['stop_loss_percent'])
