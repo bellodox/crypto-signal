@@ -58,11 +58,14 @@ class SimpleBotBehaviour():
                 if quote_symbol in self.behaviour_config['ignored_quote_currencies']:
                     continue
 
-                historical_data = self.exchange_interface.get_historical_data(
-                    market_data[exchange][market_pair]['symbol'],
-                    exchange,
-                    self.behaviour_config['candle_timeframe']
-                )
+                try:
+                    historical_data = self.exchange_interface.get_historical_data(
+                        market_data[exchange][market_pair]['symbol'],
+                        exchange,
+                        self.behaviour_config['candle_timeframe']
+                    )
+                except:
+                    continue
 
                 strategy_result = {
                     'is_hot': True,
@@ -125,24 +128,21 @@ class SimpleBotBehaviour():
 
                 if base_symbol in current_holdings[exchange]:
                     if base_symbol != "BTC":
-                        order_book = self.exchange_interface.get_order_book(market_pair, exchange)
-                        base_ask = order_book['asks'][0][0] if order_book['asks'] else None
-                        if not base_ask:
-                            return
-
-                        current_symbol_holdings = current_holdings[exchange][quote_symbol]
-                        quote_bid = current_symbol_holdings['volume_free']
-
-                        base_volume = quote_bid / base_ask
-
+                        current_symbol_holdings = current_holdings[exchange][base_symbol]
                         btc_value = self.exchange_interface.get_btc_value(
                             exchange,
                             base_symbol,
-                            base_volume
+                            current_symbol_holdings['volume_free']
                         )
 
                         if current_symbol_holdings['btc_stop_loss'] > btc_value:
-                            self.logger.debug("%s is under stop loss, selling!", base_symbol)
+                            self.logger.debug(
+                                "%s hit stop loss threshold of %s > %s, selling!",
+                                base_symbol,
+                                current_symbol_holdings['btc_stop_loss'],
+                                btc_value
+                            )
+
                             self.sell(
                                 base_symbol,
                                 quote_symbol,
@@ -151,20 +151,11 @@ class SimpleBotBehaviour():
                                 current_holdings
                             )
                             current_holdings = self.__get_holdings()
-                            print('STOP LOSS SALE OCCURED!')
-                            print(
-                                base_symbol,
-                                ': ',
-                                current_symbol_holdings['btc_stop_loss'],
-                                ' > ',
-                                btc_value
-                            )
-                            exit()
                         else:
                             # Update stop loss here
                             pass
 
-                elif markets[market_pair]['is_hot']:
+                if markets[market_pair]['is_hot']:
                     self.logger.debug("%s is hot!", market_pair)
                     for indicator in markets[market_pair]['values']:
                         self.logger.debug(
