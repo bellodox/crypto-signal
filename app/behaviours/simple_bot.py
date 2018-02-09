@@ -127,12 +127,21 @@ class SimpleBotBehaviour():
                 base_symbol, quote_symbol = market_pair.split('/')
 
                 if base_symbol in current_holdings[exchange]:
+                    self.logger.debug("Checking for stop loss on %s", base_symbol)
                     if base_symbol != "BTC":
                         current_symbol_holdings = current_holdings[exchange][base_symbol]
+
                         btc_value = self.exchange_interface.get_btc_value(
                             exchange,
                             base_symbol,
                             current_symbol_holdings['volume_free']
+                        )
+
+                        self.logger.debug(
+                            "%s current value is %s last value was %s",
+                            base_symbol,
+                            btc_value,
+                            current_symbol_holdings['btc_last_value']
                         )
 
                         if current_symbol_holdings['btc_stop_loss'] > btc_value:
@@ -152,8 +161,33 @@ class SimpleBotBehaviour():
                             )
                             current_holdings = self.__get_holdings()
                         else:
-                            # Update stop loss here
-                            pass
+                            if btc_value > current_symbol_holdings['btc_last_value']:
+                                holdings = self.db_handler.read_rows(
+                                    'holdings',
+                                    {
+                                        'exchange': exchange,
+                                        'symbol': base_symbol
+                                    }
+                                )
+
+                                stop_loss_percent = float(
+                                    self.behaviour_config['stop_loss_percent']
+                                )
+
+                                percent_difference = (stop_loss_percent * btc_value) / 100
+                                btc_stop_loss = btc_value - percent_difference
+
+                                base_holding = holdings.one()
+                                base_holding.btc_last_value = btc_value
+                                base_holding.btc_stop_loss = btc_stop_loss
+                                self.db_handler.update_row('holdings', base_holding)
+
+                                self.logger.debug(
+                                    "%s stop loss increased from %s to %s",
+                                    base_symbol,
+                                    current_symbol_holdings['btc_stop_loss'],
+                                    btc_stop_loss
+                                )
 
                 if markets[market_pair]['is_hot']:
                     self.logger.debug("%s is hot!", market_pair)
@@ -380,6 +414,7 @@ class SimpleBotBehaviour():
                     'volume_free': base_volume,
                     'volume_used': 0,
                     'volume_total': base_volume,
+                    'btc_last_value': btc_value,
                     'btc_stop_loss': btc_stop_loss
                 }
                 self.db_handler.create_row('holdings', base_holding)
@@ -485,6 +520,7 @@ class SimpleBotBehaviour():
             base_holding.volume_free = base_holding.volume_free - base_bid
             base_holding.volume_used = base_holding.volume_used
             base_holding.volume_total = base_holding.volume_free + base_holding.volume_used
+            base_holding.btc_last_value = 0
             base_holding.btc_stop_loss = btc_stop_loss
             base_holding.stop_loss_cooldown = stop_loss_cooldown
             self.db_handler.update_row('holdings', base_holding)
@@ -543,6 +579,7 @@ class SimpleBotBehaviour():
                 'volume_free': row.volume_free,
                 'volume_used': row.volume_used,
                 'volume_total': row.volume_total,
+                'btc_last_value': row.btc_last_value,
                 'btc_stop_loss': row.btc_stop_loss
             }
 

@@ -21,6 +21,7 @@ class Holdings(BASE):
     volume_free = Column(Float)
     volume_used = Column(Float)
     volume_total = Column(Float)
+    btc_last_value = Column(Float, default=0)
     btc_stop_loss = Column(Float, default=0)
     stop_loss_cooldown = Column(DateTime, default=datetime.now())
 
@@ -33,6 +34,7 @@ class Holdings(BASE):
             volume_free='%s',\
             volume_used='%s',\
             volume_total='%s',\
+            btc_last_value='%s',\
             btc_stop_loss='%s',\
             stop_loss_cooldown='%s')>" % (
                 self.exchange,
@@ -42,6 +44,7 @@ class Holdings(BASE):
                 self.volume_free,
                 self.volume_used,
                 self.volume_total,
+                self.btc_last_value,
                 self.btc_stop_loss,
                 self.stop_loss_cooldown
             )
